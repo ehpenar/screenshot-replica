@@ -26,7 +26,10 @@ export function CartSheet() {
       _items: items.map((i) => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.quantity })),
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("¡Pedido confirmado! Te escribiremos pronto.");
     clear();
     setStep("cart");
