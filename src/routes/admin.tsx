@@ -125,7 +125,7 @@ function Metrics() {
             {m.top.map(([n, q]) => (
               <li key={n} className="text-sm">
                 <div className="flex justify-between"><span>{n}</span><span>{q} uds</span></div>
-                <div className="mt-1 h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${(q / m.top[0][1]) * 100}%` }} /></div>
+                <div className="mt-1 h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${(q / (m.top[0]?.[1] ?? 1)) * 100}%` }} /></div>
               </li>
             ))}
           </ul>

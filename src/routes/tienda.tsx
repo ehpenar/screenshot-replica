@@ -5,7 +5,7 @@ import { ProductCard } from "@/components/store/ProductCard";
 import { productsQuery } from "@/lib/store";
 
 export const Route = createFileRoute("/tienda")({
-  validateSearch: (s: Record<string, unknown>) => ({ q: typeof s.q === "string" ? s.q : undefined }),
+  validateSearch: (s: Record<string, unknown>): { q?: string } => ({ q: typeof s["q"] === "string" ? (s["q"] as string) : undefined }),
   head: () => ({ meta: [{ title: "Tienda · nido" }, { name: "description", content: "Sábanas, edredones, cobijas y almohadas." }, { property: "og:title", content: "Tienda · nido" }, { property: "og:description", content: "Lencería de hogar." }] }),
   component: Tienda,
 });
