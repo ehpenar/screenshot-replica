@@ -27,7 +27,7 @@ function Index() {
       <main className="mx-auto max-w-7xl px-4">
         <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-5">
           {cats.map((c) => (
-            <Link key={c.id} to="/tienda" search={{ q: undefined }} className="group overflow-hidden rounded-3xl">
+            <Link key={c.id} to="/tienda" search={{}} className="group overflow-hidden rounded-3xl">
               <img src={c.cover_image ?? ""} alt={c.name} loading="lazy" className="aspect-square w-full object-cover transition group-hover:scale-105" />
               <p className="mt-2 font-display text-lg">{c.name}</p>
             </Link>
