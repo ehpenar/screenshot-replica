@@ -1,11 +1,15 @@
 import { queryOptions } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
+import {
+  fileToDataUrl,
+  getCategories,
+  getProducts,
+  type Category,
+  type Product,
+  type ProductWithVariants,
+  type Variant,
+} from "@/lib/local-db";
 
-export type Category = Tables<"categories">;
-export type Product = Tables<"products">;
-export type Variant = Tables<"product_variants">;
-export type ProductWithVariants = Product & { product_variants: Variant[]; categories: Category | null };
+export type { Category, Product, ProductWithVariants, Variant };
 
 export const SIZES = ["Single", "Double", "Queen", "King", "Estándar"] as const;
 export const FREE_SHIPPING_FROM = 300000;
@@ -20,33 +24,17 @@ export const money = (n: number) =>
 export const categoriesQuery = () =>
   queryOptions({
     queryKey: ["categories"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("categories").select("*").order("sort");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => getCategories(),
   });
 
 export const productsQuery = () =>
   queryOptions({
     queryKey: ["products"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*, product_variants(*), categories(*)")
-        .order("created_at");
-      if (error) throw error;
-      return data as ProductWithVariants[];
-    },
+    queryFn: async () => getProducts(),
   });
 
 export const variantPrice = (p: Product, v?: Variant | null) => Number(p.base_price) + Number(v?.price_adjustment ?? 0);
 
 export async function uploadImage(file: File): Promise<string> {
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
-  const { error } = await supabase.storage.from("catalog").upload(path, file);
-  if (error) throw error;
-  const { data, error: e2 } = await supabase.storage.from("catalog").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-  if (e2 || !data) throw e2 ?? new Error("No URL");
-  return data.signedUrl;
+  return fileToDataUrl(file);
 }

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCart } from "@/lib/cart";
 import { FREE_SHIPPING_FROM, money, shippingFor } from "@/lib/store";
-import { supabase } from "@/integrations/supabase/client";
+import { placeLocalOrder } from "@/lib/local-db";
 import { toast } from "sonner";
 
 export function CartSheet() {
@@ -19,22 +19,24 @@ export function CartSheet() {
 
   const pay = async () => {
     setBusy(true);
-    const { error } = await supabase.rpc("place_order", {
-      _name: form.name,
-      _email: form.email,
-      _address: form.address,
-      _items: items.map((i) => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.quantity })),
-    });
-    setBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      placeLocalOrder({
+        name: form.name,
+        email: form.email,
+        address: form.address,
+        items: items.map((i) => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.quantity })),
+      });
+      toast.success("¡Pedido confirmado! (modo beta local)");
+      clear();
+      setStep("cart");
+      setOpen(false);
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      qc.invalidateQueries({ queryKey: ["inventory-logs"] });
+    } catch (e) {
+      toast.error((e as Error).message);
     }
-    toast.success("¡Pedido confirmado! Te escribiremos pronto.");
-    clear();
-    setStep("cart");
-    setOpen(false);
-    qc.invalidateQueries({ queryKey: ["products"] });
+    setBusy(false);
   };
 
   return (

@@ -307,6 +307,10 @@ export type Database = {
         Args: { _address: string; _email: string; _items: Json; _name: string }
         Returns: string
       }
+      ensure_bootstrap_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "customer"

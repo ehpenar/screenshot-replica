@@ -9,11 +9,11 @@ type LayerKey = "bajera" | "plana" | "fundas" | "edredon";
 type Pattern = "liso" | "rayas" | "puntos" | "cuadros";
 type Layer = { on: boolean; color: string; pattern: Pattern };
 
-const LAYERS: { key: LayerKey; label: string; match: string }[] = [
+const LAYERS: { key: LayerKey; label: string; match: string | string[] }[] = [
   { key: "bajera", label: "Sábana bajera", match: "Sábanas" },
   { key: "plana", label: "Sábana plana", match: "Sábanas" },
-  { key: "fundas", label: "Fundas de almohada", match: "Sábanas" },
-  { key: "edredon", label: "Edredón", match: "Edredones" },
+  { key: "fundas", label: "Fundas de almohada", match: ["Sábanas", "Almohadas"] },
+  { key: "edredon", label: "Edredón / Cobija", match: ["Edredones", "Cobijas"] },
 ];
 
 const PALETTE = [
@@ -67,7 +67,8 @@ export function BedConfigurator({ products }: { products: ProductWithVariants[] 
     for (const L of LAYERS) {
       const l = layers[L.key];
       if (!l.on) continue;
-      const product = products.find((p) => p.categories?.name === L.match && p.featured && p.active && p.stock_quantity > 0);
+      const matches = Array.isArray(L.match) ? L.match : [L.match];
+      const product = products.find((p) => matches.includes(p.categories?.name ?? "") && p.featured && p.active && p.stock_quantity > 0);
       if (!product) continue;
       const colorName = PALETTE.find((c) => c.hex === l.color)?.name;
       const v =

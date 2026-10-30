@@ -10,7 +10,15 @@ import { ProductForm } from "@/components/admin/ProductForm";
 import { DropZone } from "@/components/admin/DropZone";
 import { useAuth } from "@/lib/auth";
 import { categoriesQuery, money, productsQuery, type Category, type ProductWithVariants } from "@/lib/store";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  deleteCategory,
+  deleteProduct,
+  getInventoryLogs,
+  getOrders,
+  restock,
+  setOrderStatus,
+  upsertCategory,
+} from "@/lib/local-db";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
@@ -32,6 +40,7 @@ function Admin() {
         ) : (
           <>
             <h1 className="font-display text-4xl">Panel de administración</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Modo beta local · los datos se guardan en este navegador</p>
             <Tabs defaultValue="metricas" className="mt-6">
               <TabsList className="flex-wrap">
                 <TabsTrigger value="metricas">Métricas</TabsTrigger>
@@ -55,11 +64,7 @@ function Admin() {
 
 const ordersQuery = {
   queryKey: ["admin-orders"],
-  queryFn: async () => {
-    const { data, error } = await supabase.from("orders").select("*, order_items(*)").order("order_date", { ascending: false });
-    if (error) throw error;
-    return data;
-  },
+  queryFn: async () => getOrders(),
 };
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -142,8 +147,9 @@ function Products() {
   const qc = useQueryClient();
   const del = async (p: ProductWithVariants) => {
     if (!confirm(`¿Eliminar "${p.name}"?`)) return;
-    const { error } = await supabase.from("products").delete().eq("id", p.id);
-    if (error) toast.error(error.message); else { toast.success("Eliminado"); qc.invalidateQueries(); }
+    deleteProduct(p.id);
+    toast.success("Eliminado");
+    qc.invalidateQueries();
   };
   return (
     <div className="pt-4">
@@ -182,13 +188,14 @@ function CategoryRow({ c }: { c: Category }) {
   const qc = useQueryClient();
   const [f, setF] = useState({ name: c.name, description: c.description ?? "", cover_image: c.cover_image ?? "" });
   const save = async (patch = f) => {
-    const { error } = await supabase.from("categories").update(patch).eq("id", c.id);
-    if (error) toast.error(error.message); else { toast.success("Categoría guardada"); qc.invalidateQueries(); }
+    upsertCategory({ id: c.id, name: patch.name, slug: c.slug, description: patch.description, cover_image: patch.cover_image });
+    toast.success("Categoría guardada");
+    qc.invalidateQueries();
   };
   const del = async () => {
     if (!confirm(`¿Eliminar la categoría "${c.name}"?`)) return;
-    const { error } = await supabase.from("categories").delete().eq("id", c.id);
-    if (error) toast.error(error.message); else qc.invalidateQueries();
+    deleteCategory(c.id);
+    qc.invalidateQueries();
   };
   return (
     <div className="grid gap-3 rounded-3xl bg-card p-4 md:grid-cols-[14rem_1fr]">
@@ -212,8 +219,9 @@ function Categories() {
   const create = async () => {
     if (!name.trim()) return;
     const slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-");
-    const { error } = await supabase.from("categories").insert({ name, slug, sort: data.length + 1 });
-    if (error) toast.error(error.message); else { setName(""); qc.invalidateQueries(); }
+    upsertCategory({ name, slug, sort: data.length + 1 });
+    setName("");
+    qc.invalidateQueries();
   };
   return (
     <div className="space-y-4 pt-4">
@@ -231,19 +239,15 @@ function Inventory() {
   const { data: products = [] } = useQuery(productsQuery());
   const { data: logs = [] } = useQuery({
     queryKey: ["inventory-logs"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("inventory_logs").select("*, products(name)").order("date", { ascending: false }).limit(200);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => getInventoryLogs(),
   });
   const [pid, setPid] = useState("");
   const [qty, setQty] = useState(10);
-  const restock = async () => {
-    const p = products.find((x) => x.id === pid);
-    if (!p || qty < 1) return;
-    const { error } = await supabase.from("products").update({ stock_quantity: p.stock_quantity + qty }).eq("id", p.id);
-    if (error) toast.error(error.message); else { toast.success("Entrada registrada"); qc.invalidateQueries(); }
+  const doRestock = async () => {
+    if (!pid || qty < 1) return;
+    restock(pid, qty);
+    toast.success("Entrada registrada");
+    qc.invalidateQueries();
   };
   return (
     <div className="space-y-6 pt-4">
@@ -256,7 +260,7 @@ function Inventory() {
           </select>
         </label>
         <label className="text-sm">Cantidad<Input type="number" className="w-24" value={qty} onChange={(e) => setQty(Number(e.target.value))} /></label>
-        <Button onClick={restock} disabled={!pid}><PackagePlus /> Registrar entrada</Button>
+        <Button onClick={doRestock} disabled={!pid}><PackagePlus /> Registrar entrada</Button>
       </div>
       <div className="overflow-x-auto rounded-3xl bg-card">
         <table className="w-full text-sm">
@@ -282,8 +286,8 @@ function Orders() {
   const qc = useQueryClient();
   const { data = [] } = useQuery(ordersQuery);
   const setStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("orders").update({ status }).eq("id", id);
-    if (error) toast.error(error.message); else qc.invalidateQueries({ queryKey: ["admin-orders"] });
+    setOrderStatus(id, status);
+    qc.invalidateQueries({ queryKey: ["admin-orders"] });
   };
   if (!data.length) return <p className="pt-6 text-muted-foreground">Aún no hay pedidos.</p>;
   return (

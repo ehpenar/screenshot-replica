@@ -1,27 +1,35 @@
 import { useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { getLocalSession, localLogout, type LocalUser } from "@/lib/local-db";
+
+export type AuthUser = { id: string; email: string; name?: string };
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const check = async (u: User | null) => {
-      setUser(u);
-      if (u) {
-        const { data } = await supabase.rpc("has_role", { _user_id: u.id, _role: "admin" });
-        setIsAdmin(!!data);
-      } else setIsAdmin(false);
+    const sync = () => {
+      const s = getLocalSession();
+      setUser(s ? { id: s.id, email: s.email, name: s.name } : null);
+      setIsAdmin(s?.role === "admin");
       setLoading(false);
     };
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setTimeout(() => check(s?.user ?? null), 0);
-    });
-    supabase.auth.getUser().then(({ data }) => check(data.user));
-    return () => sub.subscription.unsubscribe();
+    sync();
+    window.addEventListener("nido-auth", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("nido-auth", sync);
+      window.removeEventListener("storage", sync);
+    };
   }, []);
 
-  return { user, isAdmin, loading };
+  return {
+    user,
+    isAdmin,
+    loading,
+    logout: () => localLogout(),
+  };
 }
+
+export type { LocalUser };

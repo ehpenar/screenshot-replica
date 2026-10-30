@@ -23,7 +23,7 @@ export function SiteHeader() {
           </nav>
           <form
             className="ml-auto flex flex-1 items-center rounded-full border border-border bg-card px-3 md:max-w-xs"
-            onSubmit={(e) => { e.preventDefault(); navigate({ to: "/tienda", search: { q } }); }}
+            onSubmit={(e) => { e.preventDefault(); navigate({ to: "/tienda", search: { q: q || undefined } }); }}
           >
             <Search className="h-4 w-4 text-muted-foreground" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar…" className="w-full bg-transparent px-2 py-2 text-sm outline-none" />

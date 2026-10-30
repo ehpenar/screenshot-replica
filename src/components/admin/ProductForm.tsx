@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
 import type { Category, ProductWithVariants } from "@/lib/store";
+import { saveProduct } from "@/lib/local-db";
 import { DropZone } from "./DropZone";
 import { toast } from "sonner";
 
@@ -36,24 +36,38 @@ export function ProductForm({ open, onClose, product, categories }: { open: bool
   const save = async () => {
     if (!f.name.trim()) { toast.error("El título es obligatorio"); return; }
     setBusy(true);
-    let id = product?.id;
-    if (id) {
-      const { error } = await supabase.from("products").update(f).eq("id", id);
-      if (error) { setBusy(false); toast.error(error.message); return; }
-    } else {
-      const { data, error } = await supabase.from("products").insert(f).select("id").single();
-      if (error || !data) { setBusy(false); toast.error(error?.message ?? "Error"); return; }
-      id = data.id;
-    }
-    await supabase.from("product_variants").delete().eq("product_id", id);
-    if (variants.length) {
-      const { error } = await supabase.from("product_variants").insert(variants.map((v) => ({ ...v, product_id: id! })));
-      if (error) toast.error(error.message);
+    try {
+      saveProduct(
+        product?.id ?? null,
+        {
+          name: f.name,
+          description: f.description,
+          category_id: f.category_id || null,
+          material: f.material,
+          base_price: f.base_price,
+          cost_price: f.cost_price,
+          stock_quantity: f.stock_quantity,
+          low_stock_threshold: f.low_stock_threshold,
+          active: f.active,
+          featured: f.featured,
+          images: f.images,
+        },
+        variants.map((v) => ({
+          color_name: v.color_name,
+          color_hex: v.color_hex,
+          size: v.size,
+          sku: v.sku || null,
+          price_adjustment: v.price_adjustment,
+          image: null,
+        })),
+      );
+      toast.success("Producto guardado");
+      qc.invalidateQueries();
+      onClose();
+    } catch (e) {
+      toast.error((e as Error).message);
     }
     setBusy(false);
-    toast.success("Producto guardado");
-    qc.invalidateQueries();
-    onClose();
   };
 
   const num = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: Number(e.target.value) });
