@@ -1,0 +1,12 @@
+# TanStack Start (Nitro) en Netlify:
+# - estáticos → dist/
+# - SSR → .netlify/functions-internal/ (auto)
+# El publish del UI estaba mal en dist/client; este archivo lo corrige.
+
+[build]
+  command = "bun run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NITRO_PRESET = "netlify"
